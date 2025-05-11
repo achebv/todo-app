@@ -2,13 +2,18 @@
   <div id="app">
     <h1>Todo App</h1>
     
+    <div v-if="todoStore.error" class="error">
+      {{ todoStore.error }}
+    </div>
+    
     <div class="todo-input">
       <input 
         v-model="newTodo" 
         @keyup.enter="addTodo"
         placeholder="What needs to be done?"
+        :disabled="todoStore.loading"
       >
-      <button @click="addTodo">Add</button>
+      <button @click="addTodo" :disabled="todoStore.loading">Add</button>
     </div>
 
     <div class="filters">
@@ -17,20 +22,26 @@
         :key="filter.value"
         :class="{ active: currentFilter === filter.value }"
         @click="setFilter(filter.value)"
+        :disabled="todoStore.loading"
       >
         {{ filter.label }}
       </button>
     </div>
 
-    <ul class="todo-list">
+    <div v-if="todoStore.loading" class="loading">
+      Loading...
+    </div>
+
+    <ul v-else class="todo-list">
       <li v-for="todo in filteredTodos" :key="todo.id" :class="{ completed: todo.completed }">
         <input 
           type="checkbox" 
           :checked="todo.completed"
           @change="toggleTodo(todo.id)"
+          :disabled="todoStore.loading"
         >
         <span>{{ todo.text }}</span>
-        <button @click="removeTodo(todo.id)">×</button>
+        <button @click="removeTodo(todo.id)" :disabled="todoStore.loading">×</button>
       </li>
     </ul>
   </div>
@@ -68,24 +79,28 @@ export default {
   },
 
   methods: {
-    addTodo() {
+    async addTodo() {
       if (this.newTodo.trim()) {
-        this.todoStore.addTodo(this.newTodo.trim())
+        await this.todoStore.addTodo(this.newTodo.trim())
         this.newTodo = ''
       }
     },
     
-    toggleTodo(id) {
-      this.todoStore.toggleTodo(id)
+    async toggleTodo(id) {
+      await this.todoStore.toggleTodo(id)
     },
     
-    removeTodo(id) {
-      this.todoStore.removeTodo(id)
+    async removeTodo(id) {
+      await this.todoStore.removeTodo(id)
     },
     
     setFilter(filter) {
       this.todoStore.setFilter(filter)
     }
+  },
+
+  async created() {
+    await this.todoStore.initTodos()
   }
 }
 </script>
@@ -126,7 +141,12 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
   background-color: #45a049;
 }
 
@@ -180,7 +200,21 @@ button:hover {
   padding: 4px 8px;
 }
 
-.todo-list li button:hover {
+.todo-list li button:hover:not(:disabled) {
   background-color: #c82333;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
 }
 </style> 
