@@ -26,3 +26,7 @@ dist-ssr
 # Environment variables
 .env
 .env.*
+firebase-cfg.js
+.firebase/hosting.ZGlzdA.cache
+backend/node
+backend/todo-app-backend@1.0.0

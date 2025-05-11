@@ -2,8 +2,8 @@
   <div id="app">
     <h1>Todo App</h1>
     
-    <div v-if="todoStore.error" class="error">
-      {{ todoStore.error }}
+    <div v-if="error" class="error">
+      {{ error }}
     </div>
     
     <div class="todo-input">
@@ -11,96 +11,78 @@
         v-model="newTodo" 
         @keyup.enter="addTodo"
         placeholder="What needs to be done?"
-        :disabled="todoStore.loading"
+        :disabled="loading"
       >
-      <button @click="addTodo" :disabled="todoStore.loading">Add</button>
+      <button @click="addTodo" :disabled="loading">Add</button>
     </div>
 
-    <div class="filters">
-      <button 
-        v-for="filter in filters" 
-        :key="filter.value"
-        :class="{ active: currentFilter === filter.value }"
-        @click="setFilter(filter.value)"
-        :disabled="todoStore.loading"
-      >
-        {{ filter.label }}
-      </button>
-    </div>
-
-    <div v-if="todoStore.loading" class="loading">
+    <div v-if="loading" class="loading">
       Loading...
     </div>
 
     <ul v-else class="todo-list">
-      <li v-for="todo in filteredTodos" :key="todo.id" :class="{ completed: todo.completed }">
+      <li v-for="todo in todos" :key="todo._id" :class="{ completed: todo.completed }">
         <input 
           type="checkbox" 
           :checked="todo.completed"
-          @change="toggleTodo(todo.id)"
-          :disabled="todoStore.loading"
+          disabled
         >
         <span>{{ todo.text }}</span>
-        <button @click="removeTodo(todo.id)" :disabled="todoStore.loading">×</button>
       </li>
     </ul>
   </div>
 </template>
 
 <script>
-import { useTodoStore } from './stores/todo'
+import axios from 'axios'
+
+const API_URL = 'http://localhost:3000/api'
 
 export default {
   name: 'App',
   
   data() {
     return {
+      todos: [],
       newTodo: '',
-      filters: [
-        { label: 'All', value: 'all' },
-        { label: 'Active', value: 'active' },
-        { label: 'Completed', value: 'completed' }
-      ]
-    }
-  },
-
-  computed: {
-    todoStore() {
-      return useTodoStore()
-    },
-    
-    filteredTodos() {
-      return this.todoStore.filteredTodos
-    },
-    
-    currentFilter() {
-      return this.todoStore.filter
+      loading: false,
+      error: null
     }
   },
 
   methods: {
-    async addTodo() {
-      if (this.newTodo.trim()) {
-        await this.todoStore.addTodo(this.newTodo.trim())
-        this.newTodo = ''
+    async fetchTodos() {
+      this.loading = true
+      try {
+        const response = await axios.get(`${API_URL}/tasks`)
+        this.todos = response.data
+      } catch (error) {
+        this.error = 'Error fetching todos: ' + error.message
+      } finally {
+        this.loading = false
       }
     },
-    
-    async toggleTodo(id) {
-      await this.todoStore.toggleTodo(id)
-    },
-    
-    async removeTodo(id) {
-      await this.todoStore.removeTodo(id)
-    },
-    
-    setFilter(filter) {
-      this.todoStore.setFilter(filter)
+
+    async addTodo() {
+      if (!this.newTodo.trim()) return
+
+      this.loading = true
+      try {
+        const response = await axios.post(`${API_URL}/tasks`, {
+          text: this.newTodo.trim()
+        })
+        this.todos.unshift(response.data)
+        this.newTodo = ''
+      } catch (error) {
+        this.error = 'Error adding todo: ' + error.message
+      } finally {
+        this.loading = false
+      }
     }
   },
 
-  async created() {
-    await this.todoStore.initTodos()
+  created() {
+    this.fetchTodos()
   }
 }
 </script>
@@ -150,23 +132,6 @@ button:hover:not(:disabled) {
   background-color: #45a049;
 }
 
-.filters {
-  margin: 20px 0;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-
-.filters button {
-  background-color: #f8f9fa;
-  color: #2c3e50;
-}
-
-.filters button.active {
-  background-color: #4CAF50;
-  color: white;
-}
-
 .todo-list {
   list-style: none;
   padding: 0;
@@ -193,15 +158,6 @@ button:hover:not(:disabled) {
 .todo-list li span {
   flex: 1;
   text-align: left;
-}
-
-.todo-list li button {
-  background-color: #dc3545;
-  padding: 4px 8px;
-}
-
-.todo-list li button:hover:not(:disabled) {
-  background-color: #c82333;
 }
 
 .loading {
